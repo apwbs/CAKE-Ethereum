@@ -26,7 +26,8 @@ def send_MessageIPFSLink(dataOwner_address, private_key, message_id, hash_file):
     }
     message_bytes = hash_file.encode('ascii')
     base64_bytes = base64.b64encode(message_bytes)
-    message = contract.functions.setIPFSLink(int(message_id), base64_bytes[:32], base64_bytes[32:]).buildTransaction(tx)
+    message = contract.functions.setIPFSLink(int(message_id), dataOwner_address, base64_bytes[:32],
+                                             base64_bytes[32:]).buildTransaction(tx)
     signed_transaction = web3.eth.account.sign_transaction(message, private_key)
     transaction_hash = web3.eth.send_raw_transaction(signed_transaction.rawTransaction)
     print(f'tx_hash: {web3.toHex(transaction_hash)}')

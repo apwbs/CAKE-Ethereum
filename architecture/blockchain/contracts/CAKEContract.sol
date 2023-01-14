@@ -17,6 +17,7 @@ contract CAKEContract {
 
   struct IPFSCiphertext {
     address sender;
+    address sdmSender;
     bytes32 hashPart1;
     bytes32 hashPart2;
   }
@@ -54,8 +55,9 @@ contract CAKEContract {
       return (joined);
   }
 
-  function setIPFSLink(uint64 _messageID, bytes32 _hash1, bytes32 _hash2) public {
-    allLinks[_messageID].sender = msg.sender;
+  function setIPFSLink(uint64 _messageID, address _address, bytes32 _hash1, bytes32 _hash2) public {
+    allLinks[_messageID].sdmSender = msg.sender;
+    allLinks[_messageID].sender = _address;
     allLinks[_messageID].hashPart1 = _hash1;
     allLinks[_messageID].hashPart2 = _hash2;
   }
