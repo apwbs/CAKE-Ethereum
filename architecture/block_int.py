@@ -12,7 +12,7 @@ def get_nonce(ETH_address):
     return web3.eth.get_transaction_count(ETH_address)
 
 
-def send_MessageIPFSLink(dataOwner_address, private_key, message_id, hash_file):
+def send_MessageIPFSLink(sdm_address, private_key, sender_address, message_id, hash_file):
     with open(compiled_contract_path) as file:
         contract_json = json.load(file)
         contract_abi = contract_json['abi']
@@ -20,13 +20,13 @@ def send_MessageIPFSLink(dataOwner_address, private_key, message_id, hash_file):
     contract = web3.eth.contract(address=deployed_contract_address, abi=contract_abi)
 
     tx = {
-        'nonce': get_nonce(dataOwner_address),
+        'nonce': get_nonce(sdm_address),
         'gasPrice': web3.eth.gas_price,
-        'from': dataOwner_address
+        'from': sdm_address
     }
     message_bytes = hash_file.encode('ascii')
     base64_bytes = base64.b64encode(message_bytes)
-    message = contract.functions.setIPFSLink(int(message_id), dataOwner_address, base64_bytes[:32],
+    message = contract.functions.setIPFSLink(int(message_id), sender_address, base64_bytes[:32],
                                              base64_bytes[32:]).buildTransaction(tx)
     signed_transaction = web3.eth.account.sign_transaction(message, private_key)
     transaction_hash = web3.eth.send_raw_transaction(signed_transaction.rawTransaction)
@@ -86,7 +86,7 @@ def retrieve_users_attributes(process_instance_id):
     return message
 
 
-def send_publicKey(reader_address, private_key, hash_file):
+def send_publicKey(address, private_key, hash_file):
     with open(compiled_contract_path) as file:
         contract_json = json.load(file)
         contract_abi = contract_json['abi']
@@ -94,9 +94,9 @@ def send_publicKey(reader_address, private_key, hash_file):
     contract = web3.eth.contract(address=deployed_contract_address, abi=contract_abi)
 
     tx = {
-        'nonce': get_nonce(reader_address),
+        'nonce': get_nonce(address),
         'gasPrice': web3.eth.gas_price,
-        'from': reader_address
+        'from': address
     }
     message_bytes = hash_file.encode('ascii')
     base64_bytes = base64.b64encode(message_bytes)
