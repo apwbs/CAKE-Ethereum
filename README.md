@@ -9,11 +9,11 @@ For the impatient: in this [Docker Hub repository](https://hub.docker.com/reposi
 ## Guide
 
 ### Requirements
-There are two ways to run the system. The first one is to download the corresponding Docker Image for the Ethereum implementation stored at the [Docker Hub](https://hub.docker.com/repository/docker/apwbs/martsia/general).
+There are two ways to run the system. The first one is to download the corresponding Docker Image for the Ethereum implementation stored at the [Docker Hub](https://hub.docker.com/repository/docker/apwbs/cake/general).
 
 Otherwise, it is (strongly) recommended to install Docker and create a new image running Ubuntu 18.04 and then start one
 or more containers from that image. To do this, firstly use the DockerFile running `docker build -t image_name PATH_TO_THE_DOCKERFILE/DockerFiles/`
-to create a docker image. Then run `docker run -it -v PATH_TO_MARTSIA-EthereumFOLDER/MARTSIA-Ethereum/:/MARTSIA-Ethereum image_name`
+to create a docker image. Then run `docker run -it -v PATH_TO_CAKE-EthereumFOLDER/CAKE-Ethereum/:/CAKE-Ethereum image_name`
 to create a container starting from the image created in the previous step. To run the first instance of a container run
 `docker start container_name`, then run `docker attach container_name`. To run other independent instances of the same container run
 `docker exec -it container_name bin/bash`. Running other instances (from the second on) of the same container with 
@@ -94,15 +94,6 @@ Next, open the attribute certifier file and write down the attributes that you i
 Then run `python3 attribute_certifier.py` to store those values both in the certifier db and on chain. Copy the resulting
 process_instance_id number in the .env file.
 
-### Authorities instantiation
-
-In order to instantiate the four authorities with multi-party computation, open authority1.py, authority2.py
-authority3.py and authority4.py. Consider the lines highlighted with `###LINES###` in the files.
-Run the function 'save_authorities_names()' for all the authorities. Then, after all the authorities have completed this step,
-run 'initial_parameters_hashed()' for all the authorities. Then run the other three functions with the same procedure, namely
-run the third function for all the authorities, then the fourth function of all the authorities and so on. At the end of this 
-procedure, the authorities are instantiated via multi-party computation, and they are ready to generate keys for the users.
-
 ### Message ciphering and delivering
 
 To cipher a message and store it on the blockchain, open the 'data_owner.py' file. Firstly, run 'generate_pp_pk()' to 
@@ -117,13 +108,6 @@ the second option is to send a key request on chain and get an IPFS link on chai
 the 'client.py' file, specify the constants like 'reader_address', 'gid' etc. and then run `python3 server_authority*.py`. 
 Then, run `python3 client.py` to firstly start the handshake function and then to ask for a key. Send these two messages in different
 moments just commenting the action that you do not want to perform. 
-
-To use the second way (the one in the 'key_on_block' branch) to ask for a key, you need to run the 'send_key_request()'
-function specifying the authority_address you want to invoke. Then, run `python3 server_monitor_auth*.py` to let the 
-authorities monitor the blockchain and react to a key request. The authority is going to read the key request, generate a key
-and store it on chain. The user, in order to get the key, has to run `python3 server_monitor_reader.py` script specifying the 
-authority address invoked. The script is going to retrieve the key and store it in a private database. After having obtained 
-all the key parts, just run the 'reader.py' script as described below.
 
 ### Message reading
 
