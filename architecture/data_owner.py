@@ -85,6 +85,14 @@ g = open('files/data.json')
 
 message_to_send = g.read()
 
+###########
+###########
+###########
+###LINES###
+###########
+###########
+###########
+
 # policy_string = '1604423002081035210 and (MANUFACTURER or (SUPPLIER and ELECTRONICS))'
 
 entries = [['ID', 'SortAs', 'GlossTerm'], ['Acronym', 'Abbrev'], ['Specs', 'Dates']]

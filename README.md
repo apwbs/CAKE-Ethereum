@@ -96,21 +96,20 @@ process_instance_id number in the .env file.
 
 ### Message ciphering and delivering
 
-To cipher a message and store it on the blockchain, open the 'data_owner.py' file. Firstly, run 'generate_pp_pk()' to 
-instantiate the data owner, then modify the file 'data.json' with the data you want to cipher. Then, run the main() function, but
-remember to modify the access policy and the entries that you need to cipher with a particular policy: 
-lines highlighted with `###LINES###` in the file.
+Firstly, run the SDM server with `python3 sdm_server.py`.
+To cipher a message and store it on the blockchain, open the 'data_owner.py' file. Modify the file 'data.json' 
+with the data you want to cipher. Then, modify the access policy and the entries that you need to cipher with a 
+particular policy: lines highlighted with `###LINES###` in the file. Run the script with the `handshake` function
+to receive a number to cipher. Finally, run the script with the signature and the ciphering request.
 
 ### Key requests
 
-To obtain a key from the authorities there are two ways. The first one (the one in the main) is to send a request using an SLL client-server connection,
-the second option is to send a key request on chain and get an IPFS link on chain to open. To send a request via SSL, open
-the 'client.py' file, specify the constants like 'reader_address', 'gid' etc. and then run `python3 server_authority*.py`. 
-Then, run `python3 client.py` to firstly start the handshake function and then to ask for a key. Send these two messages in different
-moments just commenting the action that you do not want to perform. 
+To obtain a key from the authorities send a request using an SLL client-server connection. To send a request via SSL, open
+the 'client.py' file, specify the constants like 'reader_address', 'message_id' etc. and then run `python3 skm_server.py`. 
+Then, run `python3 client.py` to firstly start the handshake function and then to ask for a key. Send these two messages 
+in different moments just commenting the action that you do not want to perform. 
 
 ### Message reading
 
-Once you have obtained a part of a key from all the authorities,
-open the 'reader.py' file and run the generate_public_parameters() function. Then put the right values in the 'message_id' and
-'slice_id' constants and run the main() function to read the message.
+Once you have obtained a key from the SKM, open the 'client.py' file and put the right values 
+in the 'message_id' and 'slice_id' constants and run the `send` function to ask for the accessing request.
