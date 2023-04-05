@@ -1,0 +1,7 @@
+*.db
+*.DS_Store
+*.env
+architecture/__pycache__
+architecture/blockchain
+architecture/Keys
+architecture/files/data.json
