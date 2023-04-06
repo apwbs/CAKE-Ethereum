@@ -8,7 +8,7 @@ import argparse
 
 api = ipfshttpclient.connect('/ip4/127.0.0.1/tcp/5001')
 
-manufacturer_address = config('ADDRESS_MANUFACTURER')
+manufacturer_address = config('PRIVATEKEY_MANUFACTURER')
 manufacturer_private_key = config('PRIVATEKEY_MANUFACTURER')
 electronics_address = config('ADDRESS_SUPPLIER1')
 electronics_private_key = config('PRIVATEKEY_SUPPLIER1')
@@ -20,11 +20,11 @@ reader_address = mechanics_address
 private_key = mechanics_private_key
 
 parser = argparse.ArgumentParser(description='Reader name')
-parser.add_argument('reader', type=str, default='MANUFACTER',help='Reader name')
+parser.add_argument('-r', '--reader', type=str, default='MANUFACTURER',help='Reader name')
 
 args = parser.parse_args()
-reader_address = 'ADDRESS_' + args.reader
-private_key = 'PRIVATEKEY_' + args.reader 
+reader_address = config('ADDRESS_' + args.reader)
+private_key = config('PRIVATEKEY_' + args.reader)
 
 # Connection to SQLite3 reader database
 conn = sqlite3.connect('files/reader/reader.db')
