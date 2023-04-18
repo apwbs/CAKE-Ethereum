@@ -259,7 +259,7 @@ def handshake():
 
 @app.route('dataOwner/cipher/', methods=['POST'])
 def cipher():
-    message_json = request.form.get('message', default = '', type = str))       
+    message_json = request.form.get('message', default = '', type = str)
     if message_json == '':
         return "Missing parameters" , 400
     entries = request.form.get('entries', default = '', type = list)
