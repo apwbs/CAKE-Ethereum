@@ -84,24 +84,7 @@ class CAKEClient:
             if receive[:15] == 'number to sign:':
                 self.x.execute("INSERT OR IGNORE INTO handshake_number VALUES (?,?,?,?)",
                         (self.process_instance_id, self.message_id, self.reader_address, receive[16:]))
-                print("Number to sign:", receive[16:])
-                print("Inserted in database")
-                print("Process instance id:", self.process_instance_id)
-                print("Message id:", self.message_id)
-                print("Reader address:", self.reader_address)
-                self.x.execute("SELECT * FROM handshake_number WHERE process_instance=? AND message_id=? AND reader_address=?",
-                (self.process_instance_id, self.message_id, self.reader_address))
-                result = self.x.fetchall()
-                print("BBBBBBBBBBBB")
-                print(result)
-
                 self.connection.commit()
-
-                self.x.execute("SELECT * FROM handshake_number WHERE process_instance=? AND message_id=? AND reader_address=?",
-                (self.process_instance_id, self.message_id, self.reader_address))
-                result = self.x.fetchall()
-                print("AAAAAAAAA")
-                print(result)
 
             if receive[:25] == 'Here is IPFS link and key':
                 key = receive.split('\n\n')[0].split("b'")[1].rstrip("'")
