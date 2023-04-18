@@ -8,10 +8,29 @@ from hashlib import sha512
 
 app = Flask(__name__)
 
-class CAKEClient:
-    def __init__(self):
-        # Connection to SQLite3 reader database
-        self.connection = sqlite3.connect('../files/reader/reader.db')
+def sign_number(database, process_instance_id, message_id, reader_address): 
+    database.execute("SELECT * FROM handshake_number WHERE process_instance=? AND message_id=? AND reader_address=?",
+            (process_instance_id, message_id, reader_address))
+    result = database.fetchall()
+    print(result)
+    number_to_sign = result[0][3]
+
+    database.execute("SELECT * FROM rsa_private_key WHERE reader_address=?", (reader_address,))
+    result = database.fetchall()
+    print(result)
+    private_key = result[0]
+
+    private_key_n = int(private_key[1])
+    private_key_d = int(private_key[2])
+
+    msg = bytes(str(number_to_sign), 'utf-8')
+    hash = int.from_bytes(sha512(msg).digest(), byteorder='big')
+    signature = pow(hash, private_key_d, private_key_n)
+    return signature
+
+class CAKEConnection:
+    def __init__(self, path_to_db, port):
+        self.connection = sqlite3.connect(path_to_db)
 
         self.x = self.connection.cursor()
 
@@ -21,7 +40,7 @@ class CAKEClient:
         # Set up connection parameters
         # TODO: Move this to a config file
         self.HEADER = 64
-        self.PORT = 5051
+        self.PORT = port
         self.FORMAT = 'utf-8'
         self.server_sni_hostname = 'Sapienza'
         self.DISCONNECT_MESSAGE = "!DISCONNECT"
@@ -33,12 +52,9 @@ class CAKEClient:
         self.client_cert = '../Keys/client.crt'
         self.client_key = '../Keys/client.key'
 
-        self.message_id = ""
-        self.slice_id = ""
-        self.reader_address = "0x0"
-
         self.__connect__()
 
+    ### Connect to the server
     def __connect__(self):
         """
         Creation and connection of the secure channel using SSL protocol
@@ -49,27 +65,29 @@ class CAKEClient:
         self.conn = context.wrap_socket(s, server_side=False, server_hostname=self.server_sni_hostname)
         self.conn.connect(self.ADDR)
         return
-        
-    def sign_number(self):
-        self.x.execute("SELECT * FROM handshake_number WHERE process_instance=? AND message_id=? AND reader_address=?",
-                (self.process_instance_id, self.message_id, self.reader_address))
-        result = self.x.fetchall()
-        print(result)
-        number_to_sign = result[0][3]
+    
+    def disconnect(self):
+        print("Disconnecting")
+        self.send(self.DISCONNECT_MESSAGE)
+        return
 
-        self.x.execute("SELECT * FROM rsa_private_key WHERE reader_address=?", (self.reader_address,))
-        result = self.x.fetchall()
-        print(result)
-        private_key = result[0]
 
-        private_key_n = int(private_key[1])
-        private_key_d = int(private_key[2])
+### This class is equivalent to the content of ../client.py
+class CAKEClient(CAKEConnection):
+    ### Initialize the class with the information to connect to the server and the DB.
+    ### The information of message_id, reader_address and slice_id are optional,
+    ### they are used to sign the message and the can be changed or setted later
+    def __init__(self, message_id = "", reader_address = "", slice_id = ""):
 
-        msg = bytes(str(number_to_sign), 'utf-8')
-        hash = int.from_bytes(sha512(msg).digest(), byteorder='big')
-        signature = pow(hash, private_key_d, private_key_n)
-        # print("Signature:", hex(signature))
-        return signature
+        super().__init__(path_to_db='../files/reader/reader.db', port=5051)
+        self.__setArgs__(message_id, reader_address, slice_id)
+        return
+
+    def __setArgs__(self, message_id, reader_address, slice_id = ""):
+        self.message_id = message_id
+        self.reader_address = reader_address
+        self.slice_id = slice_id
+        return
 
     def send(self, msg):
         message = msg.encode(self.FORMAT)
@@ -104,132 +122,169 @@ class CAKEClient:
                 print(plaintext)
         return receive
     
-    def disconnect(self):
-        print("Disconnecting")
-        self.send(self.DISCONNECT_MESSAGE)
-        return ""
-    
+        
     def handshake(self):
-        print("Start handshake")
-        print("Message id:", self.message_id)
-        print("Reader address:", self.reader_address)
         self.send("Start handshake||" + str(self.message_id) + '||' + self.reader_address)
         self.disconnect()
-        return ""
+        return
     
     def generate_key(self):
-        signature_sending = self.sign_number()
+        signature_sending = sign_number(self.x, self.process_instance_id, self.message_id, self.reader_address)
         self.send("Generate my key||" + self.message_id + '||' + self.reader_address + '||' + str(signature_sending))
         self.disconnect()
-        return ""
+        return
     
     def access_data(self):
-        signature_sending = self.sign_number()
+        signature_sending = sign_number(self.x, self.process_instance_id, self.message_id, self.reader_address)
         self.send("Access my data||" + self.message_id + '||' + self.slice_id + '||' + self.reader_address + '||' + str(signature_sending))
         self.disconnect()
-        return ""
+        return
+    
+class CAKEDataOwner(CAKEConnection):
+
+    def __init__(self):
+        super().__init__("../files/data_owner/data_owner.db", 5050)
+        self.manufacturer_address = config('ADDRESS_MANUFACTURER')
+        return
+    
+    """
+    function to handle the sending and receiving messages.
+    """
+    def send(self, msg):
+        message = msg.encode(self.FORMAT)
+        msg_length = len(message)
+        send_length = str(msg_length).encode(self.FORMAT)
+        send_length += b' ' * (self.HEADER - len(send_length))
+        self.conn.send(send_length)
+        # print(send_length)
+        self.conn.send(message)
+        receive = self.conn.recv(6000).decode(self.FORMAT)
+        if len(receive) != 0:
+            print(receive)
+            if receive[:15] == 'Number to sign:':
+                self.x.execute("INSERT OR IGNORE INTO handshake_number VALUES (?,?,?)",
+                        (self.process_instance_id, self.sender, receive[16:]))
+                self.connection.commit()
+
+            if receive[:23] == 'Here is the message_id:':
+                self.x.execute("INSERT OR IGNORE INTO messages VALUES (?,?,?)", (self.process_instance_id, self.sender, receive[16:]))
+                self.connection.commit()
+
+    def handshake(self):
+        print("Start handshake")
+        self.send("Start handshake||" + self.manufacturer_address)
+        self.disconnect()
+        return
+    
+    def cipher_data(self, message_to_send, entries_string, policy_string):
+        signature_sending = sign_number(self.x, self.process_instance_id, self.manufacturer_address)
+        self.send("Cipher this message||" + message_to_send + '||' + entries_string + '||' + policy_string + '||' + self.manufacturer_address   + '||' + str(signature_sending))
+        self.disconnect()
+        return
 
 
-    def setMessageId(self, message_id):
-        self.message_id = message_id
-        return ""
+def getArgs(request):
+    if request.method == 'GET':
+        reader_address = request.args.get('reader_address', default = '', type = str)
+        message_id = request.args.get('message_id', default = '', type = str)
+        slice_id = request.args.get('slice_id', default = '', type = str)
+    elif request.method == 'POST':
+        reader_address = request.form.get('reader_address', default = '', type = str)
+        message_id = request.form.get('message_id', default = '', type = str)
+        slice_id = request.form.get('slice_id', default = '', type = str)
 
-    def setReaderAddress(self, reader_address):
-        self.reader_address = reader_address
-        return ""
+    print("Reader_address is: " + reader_address)
+    print("Message_id is: " + message_id)
+    if slice_id != '':
+        print("Slice_id is: " + slice_id)
+    return reader_address, message_id, slice_id
 
-    def setSliceId(self, slice_id):
-        self.slice_id = slice_id
-        return ""
 
 @app.route('/')
 def go_home():
     return 'Welcome to the CAKE API'
 
-
-@app.route('/handshake/' , methods=['POST'])
+#### Request from client to SKM Server ####
+@app.route('/client/handshake/' , methods=['GET', 'POST'])
 def handshake():
-    reader_address = request.args.get('reader_address', default = '', type = str)
-    message_id = request.args.get('message_id', default = '', type = str)
+    reader_address, message_id = getArgs(request)
     if reader_address == '' or message_id == '':
         return "Missing parameters" , 400   
-    client = CAKEClient()
-    print("Reader_address is: " + reader_address)
-    client.setReaderAddress(reader_address)
-    print("Message_id is: " + message_id)
-    client.setMessageId(message_id)
-    
+    client = CAKEClient(message_id=message_id, reader_address=reader_address)
     client.handshake()
     #client.disconnect()
     return "Handshake completed" , 200
 
-@app.route('/generateKey/' , methods=['GET', 'POST'])
+@app.route('/client/generateKey/' , methods=['GET', 'POST'])
 def generateKey():
-    reader_address = request.args.get('reader_address', default = '', type = str)
-    message_id = request.args.get('message_id', default = '', type = str)
+    reader_address, message_id = getArgs(request)
     if reader_address == '' or message_id == '':
         print("Missing parameters")
         return "Missing parameters" , 400
-    client = CAKEClient()
-    print("Reader_address is: " + reader_address)
-    client.setReaderAddress(reader_address)
-    print("Message_id is: " + message_id)
-    client.setMessageId(message_id)
+    client = CAKEClient(message_id=message_id, reader_address=reader_address)
     client.generate_key()
-    #client.disconnect()
     return "Key generated"
 
-@app.route('/accessData/' , methods=['GET', 'POST'])
+@app.route('/client/accessData/' , methods=['GET', 'POST'])
 def accessData():
-    reader_address = request.args.get('reader_address', default = '', type = str)
-    message_id = request.args.get('message_id', default = '', type = str)
-    slice_id = request.args.get('slice_id', default = '', type = str)
+    reader_address, message_id, slice_id = getArgs(request)
     if reader_address == '' or message_id == '' or slice_id == '':
         return "Missing parameters" , 400
-    client = CAKEClient()
-    print("Reader_address is: " + reader_address)
-    client.setReaderAddress(reader_address)
-    print("Message_id is: " + message_id)
-    client.setMessageId(message_id)
-    print("Slice_id is: " + slice_id)
-    client.setSliceId(slice_id)
+    client = CAKEClient(message_id=message_id, reader_address=reader_address, slice_id=slice_id)
     client.access_data()
     #client.disconnect()   
 
     return "Data accessed"
 
 # This is a full request, it does handshake, generate key and access data
-@app.route('/fullrequest/' , methods=['GET', 'POST'])
-def fullrequest():
-    reader_address = request.args.get('reader_address', default = '', type = str)
-    message_id = request.args.get('message_id', default = '', type = str)
-    slice_id = request.args.get('slice_id', default = '', type = str)
+@app.route('/client/fullrequest/' , methods=['GET', 'POST'])
+def clinet_fullrequest():
+    reader_address, message_id, slice_id = getArgs(request)
     if reader_address == '' or message_id == '' or slice_id == '':
         return "Missing parameters" , 400
-    client = CAKEClient()
-    print("Reader_address is: " + reader_address)
-    client.setReaderAddress(reader_address)
-    print("Message_id is: " + message_id)
-    client.setMessageId(message_id)
-    print("Slice_id is: " + slice_id)
-    client.setSliceId(slice_id)
+    client = CAKEClient(message_id=message_id, reader_address=reader_address, slice_id=slice_id)
     client.handshake()
     print("Handshake launched")
-    #client.disconnect()
     client.generate_key()
-    print("Key generation launched")
-    #client.disconnect()
+    print("Key generation launched")    
     client.access_data()
     print("Data access launched")
-    #client.disconnect()
     return "Handshake completed"
 
-@app.route('/test/', methods=['GET', 'POST'])
-def test():
-    content = request.args.get('content', default = 'test', type = str)
-    filter = request.args.get('filter', default = '*', type = str)
-    print("Content is " + content)
-    return content
+@app.route('dataowner/handshake/' , methods=['GET', 'POST'])
+def handshake():
+    data_owner = CAKEDataOwner()
+    data_owner.handshake()
+    return "Handshake completed"
+
+@app.route('dataOwner/cipher/', methods=['POST'])
+def cipher():
+    message_json = request.form.get('message', default = '', type = str))       
+    if message_json == '':
+        return "Missing parameters" , 400
+    entries = request.form.get('entries', default = '', type = list)
+    if len(entries) == 0:
+        return "Missing parameters" , 400
+    policy = request.form.get('policy', default = '', type = list)
+    if len(policy.count) == 0:
+        return "Missing parameters" , 400
+    
+    #TODO: Check if it is mandatory
+    if entries.count != policy.count:
+        return "Entries and policy legth doesn't match" , 400   
+
+    entries_string = '###'.join(str(x) for x in entries)
+    policy_string = '###'.join(str(x) for x in policy)
+    
+    data_owner = CAKEDataOwner()
+    data_owner.cipher_data(message_json, entries_string, policy_string)
+    return "Cipher completed"
+
+@app.route('dataOwner/fullrequest/', methods=['POST'])
+def dataowner_fullrequest():
+    handshake()
+    cipher()
+    return "Full request completed"
 
 if __name__ == '__main__':
     app.run(port=8888)
