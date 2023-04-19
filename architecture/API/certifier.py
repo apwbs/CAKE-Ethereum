@@ -10,12 +10,12 @@ from datetime import datetime
 import json
 
 
-class Certfier():
+class Certifier():
     def certify(actors):
         for actor in actors:
-            Certfier.__read_public_key__(actor)
-        Certfier.__skm_public_key__()
-        Certfier.__attribute_certification__(actors)
+            Certifier.__read_public_key__(actor)
+        Certifier.__skm_public_key__()
+        Certifier.__attribute_certification__(actors)
 
     def __read_public_key__(actor_name):
         api = ipfshttpclient.connect('/ip4/127.0.0.1/tcp/5001')
@@ -25,11 +25,11 @@ class Certfier():
         private_key = config('PRIVATEKEY_' + actor_name)
 
         # Connection to SQLite3 reader database
-        conn = sqlite3.connect('..files/reader/reader.db')
+        conn = sqlite3.connect('../files/reader/reader.db')
         x = conn.cursor()
 
         # # Connection to SQLite3 data_owner database
-        connection = sqlite3.connect('..files/data_owner/data_owner.db')
+        connection = sqlite3.connect('../files/data_owner/data_owner.db')
         y = connection.cursor()
 
         keyPair = RSA.generate(bits=1024)
@@ -67,7 +67,7 @@ class Certfier():
         skm_private_key = config('SKM_PRIVATEKEY')
 
         # Connection to SQLite3 reader database
-        conn = sqlite3.connect('..files/skm/skm.db')
+        conn = sqlite3.connect('../files/skm/skm.db')
         x = conn.cursor()
 
         (publicKey, privateKey) = rsa.newkeys(1024)
@@ -99,7 +99,7 @@ class Certfier():
         certifier_private_key = config('CERTIFIER_PRIVATEKEY')
 
         # Connection to SQLite3 attribute_certifier database
-        conn = sqlite3.connect('files/attribute_certifier/attribute_certifier.db') # Connect to the database
+        conn = sqlite3.connect('../files/attribute_certifier/attribute_certifier.db') # Connect to the database
         x = conn.cursor()
 
         now = datetime.now()
@@ -107,6 +107,14 @@ class Certfier():
         random.seed(now)
         process_instance_id = random.randint(1, 2 ** 64)
         print(f'process instance id: {process_instance_id}')
+        
+        with open('../.env', 'r', encoding='utf-8') as file:
+            data = file.readlines()
+        data[0] = 'PROCESS_INSTANCE_ID=' + str(process_instance_id) + '\n'
+
+        with open('../.env', 'w', encoding='utf-8') as file:
+            file.writelines(data)
+
         dict_users = {}
         for actor in actors:
             dict_users[config('ADDRESS_' + actor)] = [str(process_instance_id), actor]
@@ -128,3 +136,13 @@ class Certfier():
         x.execute("INSERT OR IGNORE INTO user_attributes VALUES (?,?,?)",
                 (str(process_instance_id), hash_file, file_to_str))
         conn.commit()
+
+    def change_process_id(process_instance_id):
+        print(f'process instance id: {process_instance_id}')
+        
+        with open('../.env', 'r', encoding='utf-8') as file:
+            data = file.readlines()
+        data[0] = 'PROCESS_INSTANCE_ID=' + str(process_instance_id) + '\n'
+
+        with open('../.env', 'w', encoding='utf-8') as file:
+            file.writelines(data)
