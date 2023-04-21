@@ -70,8 +70,10 @@ def client_fullrequest():
     client = CAKEClient(message_id=message_id, reader_address=reader_address, slice_id=slice_id, process_instance_id= process_id)
     client.handshake()
     print("Handshake launched")
+    client = CAKEClient(message_id=message_id, reader_address=reader_address, slice_id=slice_id, process_instance_id= process_id)
     client.generate_key()
     print("Key generation launched")    
+    client = CAKEClient(message_id=message_id, reader_address=reader_address, slice_id=slice_id, process_instance_id= process_id)
     client.access_data()
     print("Data access launched")
     return "Handshake completed"
@@ -130,8 +132,9 @@ def dataowner_fullrequest():
     entries_string = '###'.join(str(x) for x in entries)
     policy_string = '###'.join(str(x) for x in policy)
     message = json.dumps(message)
-    data_owner = CAKEClient(process_instance_id=request.json.get('process_id'))
+    data_owner = CAKEDataOwner(process_instance_id=request.json.get('process_id'))
     data_owner.handshake()
+    data_owner = CAKEDataOwner(process_instance_id=request.json.get('process_id'))
     data_owner.cipher_data(message, entries_string, policy_string)
     return "Full request completed"
 
