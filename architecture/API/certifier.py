@@ -71,7 +71,6 @@ class Certifier():
         connection.commit() 
 
     def __skm_public_key__():
-
         api = ipfshttpclient.connect('/ip4/127.0.0.1/tcp/5001')
 
         print("Reading keys of SKM")
@@ -129,7 +128,7 @@ class Certifier():
             file.writelines(data)
 
         dict_users = {}
-        for actor, list_roles in roles:
+        for actor, list_roles in roles.items():
             dict_users[config('ADDRESS_' + actor)] = [str(process_instance_id)] + [role for role in list_roles]
         print(dict_users)
         #dict_users = {for actor in actors: config('ADDRESS_' + actor): [str(process_instance_id), actor]}
