@@ -11,11 +11,22 @@ import json
 
 
 class Certifier():
-    def certify(actors):
+    def certify(actors, roles):
         for actor in actors:
             Certifier.__read_public_key__(actor)
         Certifier.__skm_public_key__()
-        Certifier.__attribute_certification__(actors)
+        Certifier.__attribute_certification__(roles)
+
+    def read_public_key(actors):
+        for actor in actors:
+            Certifier.__read_public_key__(actor)
+
+    def skm_public_key():
+        Certifier.__skm_public_key__()
+
+    def attribute_certification(roles):
+        Certifier.__attribute_certification__(roles)
+
 
     def __read_public_key__(actor_name):
         api = ipfshttpclient.connect('/ip4/127.0.0.1/tcp/5001')
@@ -63,6 +74,8 @@ class Certifier():
 
         api = ipfshttpclient.connect('/ip4/127.0.0.1/tcp/5001')
 
+        print("Reading keys of SKM")
+
         skm_address = config('SKM_ADDRESS')
         skm_private_key = config('SKM_PRIVATEKEY')
 
@@ -91,7 +104,7 @@ class Certifier():
         conn.commit()
 
 
-    def __attribute_certification__(actors):
+    def __attribute_certification__(roles):
 
         api = ipfshttpclient.connect('/ip4/127.0.0.1/tcp/5001') # Connect to local IPFS node (creo un nodo locale di ipfs)
 
@@ -105,7 +118,7 @@ class Certifier():
         now = datetime.now()
         now = int(now.strftime("%Y%m%d%H%M%S%f"))
         random.seed(now)
-        process_instance_id = random.randint(1, 2 ** 64)
+        process_instance_id = random.randint(1, 2 ** 63)
         print(f'process instance id: {process_instance_id}')
         
         with open('../.env', 'r', encoding='utf-8') as file:
@@ -116,8 +129,9 @@ class Certifier():
             file.writelines(data)
 
         dict_users = {}
-        for actor in actors:
-            dict_users[config('ADDRESS_' + actor)] = [str(process_instance_id), actor]
+        for actor, list_roles in roles:
+            dict_users[config('ADDRESS_' + actor)] = [str(process_instance_id)] + [role for role in list_roles]
+        print(dict_users)
         #dict_users = {for actor in actors: config('ADDRESS_' + actor): [str(process_instance_id), actor]}
 
         f = io.StringIO()
