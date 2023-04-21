@@ -5,13 +5,14 @@ import socket
 from hashlib import sha512
 
 class CAKEBridge:
-    def __init__(self, path_to_db, port):
+    def __init__(self, path_to_db, port, process_instance_id = config('PROCESS_INSTANCE_ID')):
         self.connection = sqlite3.connect(path_to_db)
 
         self.x = self.connection.cursor()
 
         # Read process instance id from .env file
-        self.process_instance_id = config('PROCESS_INSTANCE_ID')
+        #self.process_instance_id = config('PROCESS_INSTANCE_ID')
+        self.process_instance_id = process_instance_id
         print("Process instance id:", self.process_instance_id)
         # Set up connection parameters
         # TODO: Move this to a config file
@@ -47,13 +48,7 @@ class CAKEBridge:
         self.send(self.DISCONNECT_MESSAGE)
         return
     
-    def sign_number(self, process_instance_id, message_id, reader_address): 
-        self.x.execute("SELECT * FROM handshake_number WHERE process_instance=? AND message_id=? AND reader_address=?",
-                (process_instance_id, message_id, reader_address))
-        result = self.x.fetchall()
-        print(result)
-        number_to_sign = result[0][3]
-
+    def sign_number(self, number_to_sign, reader_address): 
         self.x.execute("SELECT * FROM rsa_private_key WHERE reader_address=?", (reader_address,))
         result = self.x.fetchall()
         print(result)
