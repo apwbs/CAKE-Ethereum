@@ -4,6 +4,7 @@ import ssl
 from hashlib import sha512
 from decouple import config
 import sqlite3
+import argparse
 
 # Connection to SQLite3 reader database
 connection = sqlite3.connect('files/reader/reader.db')
@@ -14,7 +15,7 @@ process_instance_id = config('PROCESS_INSTANCE_ID')
 HEADER = 64
 PORT = 5051
 FORMAT = 'utf-8'
-server_sni_hostname = 'example.com'
+server_sni_hostname = 'Sapienza'
 DISCONNECT_MESSAGE = "!DISCONNECT"
 SERVER = "172.17.0.2"
 ADDR = (SERVER, PORT)
@@ -41,6 +42,7 @@ def sign_number(message_id):
 
     x.execute("SELECT * FROM rsa_private_key WHERE reader_address=?", (reader_address,))
     result = x.fetchall()
+    print(result)
     private_key = result[0]
 
     private_key_n = int(private_key[1])
@@ -68,7 +70,7 @@ def send(msg):
     conn.send(message)
     receive = conn.recv(6000).decode(FORMAT)
     if len(receive) != 0:
-
+        print(receive)
         if receive[:15] == 'number to sign:':
             x.execute("INSERT OR IGNORE INTO handshake_number VALUES (?,?,?,?)",
                       (process_instance_id, message_id, reader_address, receive[16:]))
@@ -77,7 +79,7 @@ def send(msg):
         if receive[:25] == 'Here is IPFS link and key':
             key = receive.split('\n\n')[0].split("b'")[1].rstrip("'")
             ipfs_link = receive.split('\n\n')[1]
-
+ 
             x.execute("INSERT OR IGNORE INTO decription_keys VALUES (?,?,?,?,?)",
                       (process_instance_id, message_id, reader_address, ipfs_link, key))
             connection.commit()
@@ -92,18 +94,37 @@ def send(msg):
             print(plaintext)
 
 
-message_id = '16969972429370955301'
-slice_id = '10021169745631875263'
-reader_address = '0x9e7767d3753DBA2B546f93E8b20802162d88C885'
 
-# send("Start handshake||" + str(message_id) + '||' + reader_address)
+message_id = '5654507257769477325' #from data owner
+slice_id = '7919652336399920113' #from data owner #message_id = '16969972429370955301' #slice_id = '10021169745631875263'
+reader_address = '0x81215eEC040673dB5131f40184477091747ea4A8' #supplier1
 
-signature_sending = sign_number(message_id)
+parser =argparse.ArgumentParser(description="Client request details", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+parser.add_argument('-m', '--message_id', type=str, default=message_id, help='Message ID')
+parser.add_argument('-s', '--slice_id', type=str, default=slice_id, help='Slice ID')
+parser.add_argument('-rd', '--reader_address', type=str, default=reader_address, help='Reader address')
 
-# send("Generate my key||" + message_id + '||' + reader_address + '||' + str(signature_sending))
+#TODO: add the other arguments
+parser.add_argument('-hs', '--handshake', action='store_true', help='Handshake')
+parser.add_argument('-gs', '--generate_key', action='store_true', help='Generate key')
+parser.add_argument('-ad','--access_data',  action='store_true', help='Access data')
+args = parser.parse_args()
 
-send("Access my data||" + message_id + '||' + slice_id + '||' + reader_address + '||' + str(signature_sending))
+message_id = args.message_id
+slice_id = args.slice_id
+reader_address = args.reader_address
+
+if args.handshake:
+    send("Start handshake||" + str(message_id) + '||' + reader_address) #and exit()
+
+if args.generate_key or args.access_data:   
+    signature_sending = sign_number(message_id)
+    if args.generate_key:
+        send("Generate my key||" + message_id + '||' + reader_address + '||' + str(signature_sending))
+    if args.access_data:
+        send("Access my data||" + message_id + '||' + slice_id + '||' + reader_address + '||' + str(signature_sending))
 
 # exit()
-
 send(DISCONNECT_MESSAGE)
+
+#solo 99 poi 101 e 103, poi 101 e 105 
