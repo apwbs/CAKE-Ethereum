@@ -126,5 +126,3 @@ if args.generate_key or args.access_data:
 
 # exit()
 send(DISCONNECT_MESSAGE)
-
-#solo 99 poi 101 e 103, poi 101 e 105 
