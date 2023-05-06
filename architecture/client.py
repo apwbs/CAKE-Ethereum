@@ -85,7 +85,7 @@ def send(msg):
             connection.commit()
 
         if receive[:26] == 'Here are the plaintext and salt':
-            plaintext = receive.split('\n\n')[0].split('Here is plaintext and salt: ')[1]
+            plaintext = receive.split('\n\n')[0].split('Here are the plaintext and salt: ')[1]
             salt = receive.split('\n\n')[1]
 
             x.execute("INSERT OR IGNORE INTO plaintext VALUES (?,?,?,?,?,?)",
