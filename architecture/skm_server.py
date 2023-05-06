@@ -107,17 +107,17 @@ def handle_client(conn, addr):
             message = msg.split('§')
             if message[0] == "Start handshake":
                 number_to_sign = generate_number_to_sign(message[1], message[2])
-                conn.send(b'number to sign: ' + str(number_to_sign).encode())
+                conn.send(b'Number to be signed: ' + str(number_to_sign).encode())
             if message[0] == "Generate my key":
                 if check_handshake(message[1], message[2], message[3]):
                     response = generate(message[1], message[2])
                     response_0 = bytes(str(response[0]), FORMAT)
                     response_1 = bytes(str(response[1]), FORMAT)
-                    conn.send(b'Here is IPFS link and key: ' + response_0 + b'\n\n' + response_1)
+                    conn.send(b'Here are the IPFS link and key: ' + response_0 + b'\n\n' + response_1)
             if message[0] == "Access my data":
                 if check_handshake(message[1], message[3], message[4]):
                     response = read(message[1], message[2], message[3])
-                    conn.send(b'Here is plaintext and salt: ' + response[0] + b'\n\n' + response[1])
+                    conn.send(b'Here are the plaintext and salt: ' + response[0] + b'\n\n' + response[1])
 
     conn.close()
 

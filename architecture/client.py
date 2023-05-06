@@ -71,12 +71,12 @@ def send(msg):
     receive = conn.recv(6000).decode(FORMAT)
     if len(receive) != 0:
         print(receive)
-        if receive[:15] == 'number to sign:':
+        if receive[:15] == 'Number to be signed:':
             x.execute("INSERT OR IGNORE INTO handshake_number VALUES (?,?,?,?)",
                       (process_instance_id, message_id, reader_address, receive[16:]))
             connection.commit()
 
-        if receive[:25] == 'Here is IPFS link and key':
+        if receive[:25] == 'Here are the IPFS link and key':
             key = receive.split('\n\n')[0].split("b'")[1].rstrip("'")
             ipfs_link = receive.split('\n\n')[1]
  
@@ -84,7 +84,7 @@ def send(msg):
                       (process_instance_id, message_id, reader_address, ipfs_link, key))
             connection.commit()
 
-        if receive[:26] == 'Here is plaintext and salt':
+        if receive[:26] == 'Here are the plaintext and salt':
             plaintext = receive.split('\n\n')[0].split('Here is plaintext and salt: ')[1]
             salt = receive.split('\n\n')[1]
 

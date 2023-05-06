@@ -60,12 +60,12 @@ class CAKEClient(CAKEBridge):
         receive = self.conn.recv(6000).decode(self.FORMAT)
         if len(receive) != 0:
             print(receive)
-            if receive[:15] == 'number to sign:':
+            if receive[:15] == 'Number to be signed:':
                 self.x.execute("INSERT OR IGNORE INTO handshake_number VALUES (?,?,?,?)",
                         (self.process_instance_id, self.message_id, self.reader_address, receive[16:]))
                 self.connection.commit()
 
-            if receive[:25] == 'Here is IPFS link and key':
+            if receive[:25] == 'Here are the IPFS link and key':
                 key = receive.split('\n\n')[0].split("b'")[1].rstrip("'")
                 ipfs_link = receive.split('\n\n')[1]
     
@@ -73,7 +73,7 @@ class CAKEClient(CAKEBridge):
                         (self.process_instance_id, self.message_id, self.reader_address, ipfs_link, key))
                 self.connection.commit()
 
-            if receive[:26] == 'Here is plaintext and salt':
+            if receive[:26] == 'Here are the plaintext and salt':
                 plaintext = receive.split('\n\n')[0].split('Here is plaintext and salt: ')[1]
                 salt = receive.split('\n\n')[1]
 
