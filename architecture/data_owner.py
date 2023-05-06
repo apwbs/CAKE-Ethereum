@@ -121,10 +121,10 @@ parser.add_argument('-c','--cipher', action='store_true')
 
 args = parser.parse_args()
 if args.hanshake:
-    send("Start handshake||" + sender)
+    send("Start handshake§" + sender)
 
 if args.cipher:
     signature_sending = sign_number()
-    send("Cipher this message||" + message_to_send + '||' + entries_string + '||' + policy_string + '||' + sender + '||' + str(signature_sending))
+    send("Cipher this message§" + message_to_send + '§' + entries_string + '§' + policy_string + '§' + sender + '§' + str(signature_sending))
 
 send(DISCONNECT_MESSAGE)

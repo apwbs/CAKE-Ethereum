@@ -103,7 +103,7 @@ def handle_client(conn, addr):
 
             # print(f"[{addr}] {msg}")
             conn.send("Msg received!".encode(FORMAT))
-            message = msg.split('||')
+            message = msg.split('§')
             if message[0] == "Start handshake":
                 number_to_sign = generate_number_to_sign(message[1])
                 conn.send(b'Number to sign: ' + str(number_to_sign).encode())

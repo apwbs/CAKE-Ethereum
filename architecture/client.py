@@ -115,14 +115,14 @@ slice_id = args.slice_id
 reader_address = args.reader_address
 
 if args.handshake:
-    send("Start handshake||" + str(message_id) + '||' + reader_address) #and exit()
+    send("Start handshake§" + str(message_id) + '§' + reader_address) #and exit()
 
 if args.generate_key or args.access_data:   
     signature_sending = sign_number(message_id)
     if args.generate_key:
-        send("Generate my key||" + message_id + '||' + reader_address + '||' + str(signature_sending))
+        send("Generate my key§" + message_id + '§' + reader_address + '§' + str(signature_sending))
     if args.access_data:
-        send("Access my data||" + message_id + '||' + slice_id + '||' + reader_address + '||' + str(signature_sending))
+        send("Access my data§" + message_id + '§' + slice_id + '§' + reader_address + '§' + str(signature_sending))
 
 # exit()
 send(DISCONNECT_MESSAGE)

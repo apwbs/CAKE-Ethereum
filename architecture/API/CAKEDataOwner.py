@@ -59,7 +59,7 @@ class CAKEDataOwner(CAKEBridge):
         """Handshake with the CAKE SDM server"""
 
         print("Start handshake")
-        self.send("Start handshake||" + self.manufacturer_address)
+        self.send("Start handshake§" + self.manufacturer_address)
         self.disconnect()
         return
     
@@ -71,7 +71,7 @@ class CAKEDataOwner(CAKEBridge):
             entries_string (str): entries converted to string
             policy_string (str): policy converted to string"""
         signature_sending = self.sign_number()
-        self.send("Cipher this message||" + message_to_send + '||' + entries_string + '||' + policy_string + '||' + self.manufacturer_address   + '||' + str(signature_sending))
+        self.send("Cipher this message§" + message_to_send + '§' + entries_string + '§' + policy_string + '§' + self.manufacturer_address   + '§' + str(signature_sending))
         self.disconnect()
         return
     
