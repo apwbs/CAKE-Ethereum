@@ -11,7 +11,7 @@ process_instance_id = config('PROCESS_INSTANCE_ID')
 HEADER = 64
 PORT = 5050
 FORMAT = 'utf-8'
-server_sni_hostname = 'Sapienza'
+server_sni_hostname = config('SERVER_SNI_HOSTNAME')
 DISCONNECT_MESSAGE = "!DISCONNECT"
 SERVER = "172.17.0.2"
 ADDR = (SERVER, PORT)
@@ -39,8 +39,6 @@ manufacturer_address = config('ADDRESS_MANUFACTURER')
 def sign_number():
     x.execute("SELECT * FROM handshake_number WHERE process_instance=?", (process_instance_id,))
     result = x.fetchall()
-    print(process_instance_id)
-    print(result)
     number_to_sign = result[0][2]
 
     x.execute("SELECT * FROM rsa_private_key WHERE reader_address=?", (sender,))
@@ -67,19 +65,16 @@ def send(msg):
     send_length = str(msg_length).encode(FORMAT)
     send_length += b' ' * (HEADER - len(send_length))
     conn.send(send_length)
-    # print(send_length)
     conn.send(message)
     receive = conn.recv(6000).decode(FORMAT)
-    if len(receive) != 0:
-        print(receive)
-        if receive[:15] == 'Number to sign:':
-            x.execute("INSERT OR IGNORE INTO handshake_number VALUES (?,?,?)",
-                      (process_instance_id, sender, receive[16:]))
-            connection.commit()
-
-        if receive[:23] == 'Here is the message_id:':
-            x.execute("INSERT OR IGNORE INTO messages VALUES (?,?,?)", (process_instance_id, sender, receive[16:]))
-            connection.commit()
+    if receive.startswith('Number to be signed:'):
+        len_initial_message = len('Number to be signed:')
+        x.execute("INSERT OR IGNORE INTO handshake_number VALUES (?,?,?)",
+                    (process_instance_id, sender, receive[len_initial_message:]))
+        connection.commit()
+    if receive.startswith('Here is the message_id:'):
+        x.execute("INSERT OR IGNORE INTO messages VALUES (?,?,?)", (process_instance_id, sender, receive[16:]))
+        connection.commit()
 
 
 # f = open('files/data.json')
