@@ -78,11 +78,11 @@ class Certifier():
         private_key = config('PRIVATEKEY_' + actor_name)
 
         # Connection to SQLite3 reader database
-        conn = sqlite3.connect('../files/reader/reader.db')
+        conn = sqlite3.connect('files/reader/reader.db')
         x = conn.cursor()
 
         # # Connection to SQLite3 data_owner database
-        connection = sqlite3.connect('../files/data_owner/data_owner.db')
+        connection = sqlite3.connect('files/data_owner/data_owner.db')
         y = connection.cursor()
 
         keyPair = RSA.generate(bits=1024)
@@ -126,7 +126,7 @@ class Certifier():
         skm_private_key = config('SKM_PRIVATEKEY')
 
         # Connection to SQLite3 reader database
-        conn = sqlite3.connect('../files/skm/skm.db')
+        conn = sqlite3.connect('files/skm/skm.db')
         x = conn.cursor()
 
         (publicKey, privateKey) = rsa.newkeys(1024)
@@ -149,6 +149,21 @@ class Certifier():
         x.execute("INSERT OR IGNORE INTO rsa_public_key VALUES (?,?,?)", (skm_address, hash_file, publicKey_store))
         conn.commit()
 
+    def __store_process_id_to_env__(value):
+        name = 'PROCESS_INSTANCE_ID'
+        with open('.env', 'r', encoding='utf-8') as file:
+            data = file.readlines()
+        edited = False
+        for line in data:
+            if line.startswith(name):
+                data.remove(line)
+                break
+        line = "\n" +  name + "=" + value + "\n"
+        data.append(line)
+
+        with open('.env', 'w', encoding='utf-8') as file:
+            file.writelines(data)
+
 
     def __attribute_certification__(roles):
         """ Certify the attributes of the actors
@@ -169,7 +184,7 @@ class Certifier():
         certifier_private_key = config('CERTIFIER_PRIVATEKEY')
 
         # Connection to SQLite3 attribute_certifier database
-        conn = sqlite3.connect('../files/attribute_certifier/attribute_certifier.db') # Connect to the database
+        conn = sqlite3.connect('files/attribute_certifier/attribute_certifier.db') # Connect to the database
         x = conn.cursor()
 
         now = datetime.now()
@@ -177,18 +192,10 @@ class Certifier():
         random.seed(now)
         process_instance_id = random.randint(1, 2 ** 63)
         print(f'process instance id: {process_instance_id}')
-        
-        with open('../.env', 'r', encoding='utf-8') as file:
-            data = file.readlines()
-        data[0] = 'PROCESS_INSTANCE_ID=' + str(process_instance_id) + '\n'
-
-        with open('../.env', 'w', encoding='utf-8') as file:
-            file.writelines(data)
-
+    
         dict_users = {}
         for actor, list_roles in roles.items():
             dict_users[config('ADDRESS_' + actor)] = [str(process_instance_id)] + [role for role in list_roles]
-        print(dict_users)
         #dict_users = {for actor in actors: config('ADDRESS_' + actor): [str(process_instance_id), actor]}
 
         f = io.StringIO()
@@ -208,7 +215,11 @@ class Certifier():
                 (str(process_instance_id), hash_file, file_to_str))
         conn.commit()
 
+        Certifier.__store_process_id_to_env__(str(process_instance_id))
+
         return process_instance_id
+    
+    
     '''
     def change_process_id(process_instance_id):
         print(f'process instance id: {process_instance_id}')

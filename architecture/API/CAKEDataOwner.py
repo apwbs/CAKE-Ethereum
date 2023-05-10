@@ -18,7 +18,7 @@ class CAKEDataOwner(CAKEBridge):
         Args:
             process_instance_id (int, optional): process instance id. Defaults to config('PROCESS_INSTANCE_ID').
         """        
-        super().__init__("../files/data_owner/data_owner.db", 5050, process_instance_id=process_instance_id)
+        super().__init__("files/data_owner/data_owner.db", 5050, process_instance_id=process_instance_id)
         self.manufacturer_address = config('ADDRESS_MANUFACTURER')
         return
     

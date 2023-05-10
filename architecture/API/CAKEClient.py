@@ -23,7 +23,7 @@ class CAKEClient(CAKEBridge):
             slice_id (str, optional): slice id. Defaults to "".
             
         """
-        super().__init__(path_to_db='../files/reader/reader.db', port=5051, process_instance_id=process_instance_id)
+        super().__init__(path_to_db='files/reader/reader.db', port=5051, process_instance_id=process_instance_id)
         self.__setArgs__(message_id, reader_address, slice_id)
         return
 
@@ -60,8 +60,8 @@ class CAKEClient(CAKEBridge):
             #print(receive)
         if receive.startswith('Number to be signed: '):
             len_initial_message = len('Number to be signed: ')
-            self.x.execute("INSERT OR IGNORE INTO handshake_number VALUES (?,?,?)",
-                    (self.process_instance_id, self.message_id, receive[len_initial_message:]))
+            self.x.execute("INSERT OR IGNORE INTO handshake_number VALUES (?,?,?,?)",
+                      (self.process_instance_id, self.message_id, self.reader_address, receive[len_initial_message:]))
             self.connection.commit()
 
         if receive.startswith('Here are the IPFS link and key'):
