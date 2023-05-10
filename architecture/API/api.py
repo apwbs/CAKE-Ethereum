@@ -29,11 +29,13 @@ def getClientArgs(request):
     message_id = request.json.get('message_id')
     slice_id = request.json.get('slice_id')
 
+    '''
     print("Reader_address is: " + reader_address)
     print("Message_id is: " + message_id)
     if slice_id is not None:
         print("Slice_id is: " + slice_id)
     print("Process_id is: " + str(process_id))
+    '''
     return reader_address, message_id, slice_id, process_id
 
 @app.route('/')
@@ -49,7 +51,7 @@ def go_home():
     return 'Welcome to the CAKE API'
 
 #### Request from client to SKM Server ####
-@app.route('/client/handshake/' , methods=['GET', 'POST'])
+@app.route('/client/handshake/' , methods=['POST'])
 def client_handshake():
     """ Request to the SKM Server to handshaking
 
@@ -72,7 +74,7 @@ def client_handshake():
     #client.disconnect()
     return "Handshake completed" , 200
 
-@app.route('/client/generateKey/' , methods=['GET', 'POST'])
+@app.route('/client/generateKey/' , methods=['POST'])
 def generateKey():
     """ Request to the SKM Server to generate a key
 
@@ -94,9 +96,9 @@ def generateKey():
         return "Missing parameters" , 400
     client = CAKEClient(message_id=message_id, reader_address=reader_address, process_instance_id = process_id)
     client.generate_key()
-    return "Key generated"
+    return "Key generated", 200
 
-@app.route('/client/accessData/' , methods=['GET', 'POST'])
+@app.route('/client/accessData/' , methods=['POST'])
 def accessData():
     """ Request to the SKM Server to access data
 
@@ -120,7 +122,7 @@ def accessData():
     client.access_data()
     #client.disconnect()   
 
-    return "Data accessed"
+    return "Data accessed", 200
 '''
 # This is a full request, it does handshake, generate key and access data
 @app.route('/client/fullrequest/' , methods=['GET', 'POST'])
@@ -192,11 +194,12 @@ def cipher():
 
     entries_string = '###'.join(str(x) for x in entries)
     policy_string = '###'.join(str(x) for x in policy)
-
+    '''
     print("Message is: " + message)
     print("Entries are: " + entries_string)
     print("Policy is: " + policy_string)
-
+    '''
+    
     data_owner = CAKEDataOwner(process_instance_id=request.json.get('process_id'))
     data_owner.cipher_data(message, entries_string, policy_string)
     return "Cipher completed"

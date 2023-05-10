@@ -18,7 +18,7 @@ class CAKEDataOwner(CAKEBridge):
         Args:
             process_instance_id (int, optional): process instance id. Defaults to config('PROCESS_INSTANCE_ID').
         """        
-        super().__init__("../files/data_owner/data_owner.db", 5050, process_instance_id=process_instance_id)
+        super().__init__("files/data_owner/data_owner.db", 5050, process_instance_id=process_instance_id)
         self.manufacturer_address = config('ADDRESS_MANUFACTURER')
         return
     
@@ -41,19 +41,15 @@ class CAKEDataOwner(CAKEBridge):
         # print(send_length)
         self.conn.send(message)
         receive = self.conn.recv(6000).decode(self.FORMAT)
-        if len(receive) != 0:
-            print(receive)
-            if receive[:15] == 'Number to sign:':
-                print("Process instance id:", self.process_instance_id)
-                print("Manufacturer address:", self.manufacturer_address)
-                print("Number to sign:", receive[16:])
-                self.x.execute("INSERT OR IGNORE INTO handshake_number VALUES (?,?,?)",
-                        (self.process_instance_id, self.manufacturer_address, receive[16:]))
-                self.connection.commit()
-
-            if receive[:23] == 'Here is the message_id:':
-                self.x.execute("INSERT OR IGNORE INTO messages VALUES (?,?,?)", (self.process_instance_id, self.manufacturer_address, receive[16:]))
-                self.connection.commit()
+        #print(receive)
+        if receive.startswith('Number to be signed: '):
+            len_initial_message = len('Number to be signed: ')
+            self.x.execute("INSERT OR IGNORE INTO handshake_number VALUES (?,?,?)",
+                    (self.process_instance_id, self.manufacturer_address, receive[len_initial_message:]))
+            self.connection.commit()
+        if receive.startswith('Here is the message_id:'):
+            self.x.execute("INSERT OR IGNORE INTO messages VALUES (?,?,?)", (self.process_instance_id, self.manufacturer_address, receive[16:]))
+            self.connection.commit()
 
     def handshake(self):
         """Handshake with the CAKE SDM server"""
@@ -83,9 +79,7 @@ class CAKEDataOwner(CAKEBridge):
         Returns:
             str: signature
         """
-        print("Process instance id:", self.process_instance_id)
         self.x.execute("SELECT * FROM handshake_number WHERE process_instance=?", (self.process_instance_id,))
         result = self.x.fetchall()
-        print(result)
         number_to_sign = result[0][2]
         return super().sign_number(number_to_sign, self.manufacturer_address)

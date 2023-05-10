@@ -15,9 +15,9 @@ process_instance_id = config('PROCESS_INSTANCE_ID')
 HEADER = 64
 PORT = 5051
 FORMAT = 'utf-8'
-server_sni_hostname = 'Sapienza'
+server_sni_hostname = config('SERVER_SNI_HOSTNAME')
 DISCONNECT_MESSAGE = "!DISCONNECT"
-SERVER = "172.17.0.2"
+SERVER = "172.17.0.3"
 ADDR = (SERVER, PORT)
 server_cert = 'Keys/server.crt'
 client_cert = 'Keys/client.crt'
@@ -42,7 +42,6 @@ def sign_number(message_id):
 
     x.execute("SELECT * FROM rsa_private_key WHERE reader_address=?", (reader_address,))
     result = x.fetchall()
-    print(result)
     private_key = result[0]
 
     private_key_n = int(private_key[1])
@@ -70,13 +69,14 @@ def send(msg):
     conn.send(message)
     receive = conn.recv(6000).decode(FORMAT)
     if len(receive) != 0:
-        print(receive)
-        if receive[:15] == 'Number to be signed:':
+        #print(receive)
+        if receive.startswith('Number to be signed: '):
+            len_initial_message = len('Number to be signed: ')
             x.execute("INSERT OR IGNORE INTO handshake_number VALUES (?,?,?,?)",
-                      (process_instance_id, message_id, reader_address, receive[16:]))
+                      (process_instance_id, message_id, reader_address, receive[len_initial_message:]))
             connection.commit()
 
-        if receive[:25] == 'Here are the IPFS link and key':
+        if receive.startswith('Here are the IPFS link and key'):
             key = receive.split('\n\n')[0].split("b'")[1].rstrip("'")
             ipfs_link = receive.split('\n\n')[1]
  
@@ -84,8 +84,8 @@ def send(msg):
                       (process_instance_id, message_id, reader_address, ipfs_link, key))
             connection.commit()
 
-        if receive[:26] == 'Here are the plaintext and salt':
-            plaintext = receive.split('\n\n')[0].split('Here is plaintext and salt: ')[1]
+        if receive.startswith('Here are the plaintext and salt'):
+            plaintext = receive.split('\n\n')[0].split('Here are the plaintext and salt: ')[1]
             salt = receive.split('\n\n')[1]
 
             x.execute("INSERT OR IGNORE INTO plaintext VALUES (?,?,?,?,?,?)",

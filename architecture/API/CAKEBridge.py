@@ -46,15 +46,15 @@ class CAKEBridge:
         self.HEADER = 64
         self.PORT = port
         self.FORMAT = 'utf-8'
-        self.server_sni_hostname = 'Sapienza'
+        self.server_sni_hostname = config('SERVER_SNI_HOSTNAME')
         self.DISCONNECT_MESSAGE = "!DISCONNECT"
-        self.SERVER = "172.17.0.2"
+        self.SERVER = "172.17.0.3"
         self.ADDR = (self.SERVER, self.PORT)
 
         # Set up SSL parameters
-        self.server_cert = '../Keys/server.crt'
-        self.client_cert = '../Keys/client.crt'
-        self.client_key = '../Keys/client.key'
+        self.server_cert = 'Keys/server.crt'
+        self.client_cert = 'Keys/client.crt'
+        self.client_key = 'Keys/client.key'
 
         self.__connect__()
 
@@ -78,7 +78,7 @@ class CAKEBridge:
         """Sign a number using the private key of the reader
         
         Args:
-            number_to_sign (int): number to sign
+            number_to_sign (int): Number to be signed
             reader_address (str): address of the reader
         
         Returns:
@@ -86,7 +86,6 @@ class CAKEBridge:
         """
         self.x.execute("SELECT * FROM rsa_private_key WHERE reader_address=?", (reader_address,))
         result = self.x.fetchall()
-        print(result)
         private_key = result[0]
 
         private_key_n = int(private_key[1])

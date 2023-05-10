@@ -6,3 +6,4 @@ architecture/API/__pycache__
 architecture/blockchain
 architecture/Keys
 architecture/files/data.json
+lunch_docker.sh

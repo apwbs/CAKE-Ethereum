@@ -4,7 +4,7 @@ import json
 import base64
 
 web3 = Web3(Web3.HTTPProvider("https://goerli.infura.io/v3/059e54a94bca48d893f1b2d45470c002"))
-compiled_contract_path = '../blockchain/build/contracts/CAKEContract.json'
+compiled_contract_path = 'blockchain/build/contracts/CAKEContract.json'
 deployed_contract_address = config('SMART_CONTRACT_CAKE_ETH')
 
 
