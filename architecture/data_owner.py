@@ -13,7 +13,7 @@ PORT = 5050
 FORMAT = 'utf-8'
 server_sni_hostname = config('SERVER_SNI_HOSTNAME')
 DISCONNECT_MESSAGE = "!DISCONNECT"
-SERVER = "172.17.0.2"
+SERVER = "172.17.0.3"
 ADDR = (SERVER, PORT)
 server_cert = 'Keys/server.crt'
 client_cert = 'Keys/client.crt'
@@ -67,8 +67,8 @@ def send(msg):
     conn.send(send_length)
     conn.send(message)
     receive = conn.recv(6000).decode(FORMAT)
-    if receive.startswith('Number to be signed:'):
-        len_initial_message = len('Number to be signed:')
+    if receive.startswith('Number to be signed: '):
+        len_initial_message = len('Number to be signed: ')
         x.execute("INSERT OR IGNORE INTO handshake_number VALUES (?,?,?)",
                     (process_instance_id, sender, receive[len_initial_message:]))
         connection.commit()
@@ -95,9 +95,9 @@ message_to_send = g.read()
 entries = [['ID', 'SortAs', 'GlossTerm'], ['Acronym', 'Abbrev'], ['Specs', 'Dates']] 
 entries_string = '###'.join(str(x) for x in entries)
 
-policy = ['1358911044885481786 and (MANUFACTURER or SUPPLIER)',
-          '1358911044885481786 and (MANUFACTURER or (SUPPLIER and ELECTRONICS))',
-          '1358911044885481786 and (MANUFACTURER or (SUPPLIER and MECHANICS))']
+policy = [str(process_instance_id) + ' and (MANUFACTURER or SUPPLIER)',
+          str(process_instance_id) + ' and (MANUFACTURER or (SUPPLIER and ELECTRONICS))',
+          str(process_instance_id) + ' and (MANUFACTURER or (SUPPLIER and MECHANICS))']
 policy_string = '###'.join(policy)
 
 # data = json.load(f)

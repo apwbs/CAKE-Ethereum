@@ -17,7 +17,7 @@ PORT = 5051
 FORMAT = 'utf-8'
 server_sni_hostname = config('SERVER_SNI_HOSTNAME')
 DISCONNECT_MESSAGE = "!DISCONNECT"
-SERVER = "172.17.0.2"
+SERVER = "172.17.0.3"
 ADDR = (SERVER, PORT)
 server_cert = 'Keys/server.crt'
 client_cert = 'Keys/client.crt'
@@ -70,8 +70,8 @@ def send(msg):
     receive = conn.recv(6000).decode(FORMAT)
     if len(receive) != 0:
         #print(receive)
-        if receive.startswith('Number to be signed:'):
-            len_initial_message = len('Number to be signed:')
+        if receive.startswith('Number to be signed: '):
+            len_initial_message = len('Number to be signed: ')
             x.execute("INSERT OR IGNORE INTO handshake_number VALUES (?,?,?,?)",
                       (process_instance_id, message_id, reader_address, receive[len_initial_message:]))
             connection.commit()
