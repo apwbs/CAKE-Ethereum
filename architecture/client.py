@@ -13,11 +13,11 @@ x = connection.cursor()
 process_instance_id = config('PROCESS_INSTANCE_ID')
 
 HEADER = 64
-PORT = 5051
+PORT = int(config('SKM_PORT'))
 FORMAT = 'utf-8'
 server_sni_hostname = config('SERVER_SNI_HOSTNAME')
 DISCONNECT_MESSAGE = "!DISCONNECT"
-SERVER = "172.17.0.3"
+SERVER = config('SERVER')
 ADDR = (SERVER, PORT)
 server_cert = 'Keys/server.crt'
 client_cert = 'Keys/client.crt'
