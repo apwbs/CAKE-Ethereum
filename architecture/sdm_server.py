@@ -11,11 +11,13 @@ import block_int
 from decouple import config
 import ipfshttpclient
 
+chunk_size = 16384
+
 api = ipfshttpclient.connect('/ip4/127.0.0.1/tcp/5001')
 
 process_instance_id = config('PROCESS_INSTANCE_ID')
 
-HEADER = 64
+HEADER = int(config('HEADER'))
 PORT = int(config('SDM_PORT'))
 server_cert = 'Keys/server.crt'
 server_key = 'Keys/server.key'
@@ -100,7 +102,11 @@ def handle_client(conn, addr):
         msg_length = conn.recv(HEADER).decode(FORMAT)
         if msg_length:
             msg_length = int(msg_length)
-            msg = conn.recv(msg_length).decode(FORMAT)
+            received_data = b""
+            while len(received_data) < msg_length:
+                chunk = conn.recv(min(msg_length - len(received_data), chunk_size))
+                received_data += chunk
+            msg = received_data.decode(FORMAT)
             if msg == DISCONNECT_MESSAGE:
                 connected = False
 
