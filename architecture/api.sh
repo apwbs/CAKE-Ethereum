@@ -1,1 +1,1 @@
-python3 API/api.py
+python3 api.py

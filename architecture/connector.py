@@ -4,7 +4,7 @@ import ssl
 import socket 
 from hashlib import sha512
 
-class CAKEBridge:
+class Connector:
     """A communication bridge between the CAKE servers and the API server
 
     A class to manage the communication between the CAKE servers and the API server
@@ -42,8 +42,7 @@ class CAKEBridge:
         self.process_instance_id = process_instance_id
         print("Process instance id:", self.process_instance_id)
         # Set up connection parameters
-        # TODO: Move this to a config file
-        self.HEADER = 64
+        self.HEADER = int(config('HEADER'))
         self.PORT = port
         self.FORMAT = 'utf-8'
         self.server_sni_hostname = config('SERVER_SNI_HOSTNAME')

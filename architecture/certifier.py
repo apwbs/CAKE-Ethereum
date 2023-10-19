@@ -8,7 +8,7 @@ import rsa
 import random
 from datetime import datetime
 import json
-
+import argparse
 
 class Certifier():
     """ Manage the certification of the attributes of the actors
@@ -34,7 +34,7 @@ class Certifier():
         Certifier.__skm_public_key__()
         return Certifier.__attribute_certification__(roles)
 
-    def read_public_key(actors):
+    def read_public_keys(actors):
         """ Read the public keys of each actor in actors
         
         Args:
@@ -218,16 +218,33 @@ class Certifier():
         Certifier.__store_process_id_to_env__(str(process_instance_id))
 
         return process_instance_id
-    
-    
-    '''
-    def change_process_id(process_instance_id):
-        print(f'process instance id: {process_instance_id}')
-        
-        with open('../.env', 'r', encoding='utf-8') as file:
-            data = file.readlines()
-        data[0] = 'PROCESS_INSTANCE_ID=' + str(process_instance_id) + '\n'
 
-        with open('../.env', 'w', encoding='utf-8') as file:
-            file.writelines(data)
-    '''
+    
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description='Certifier configuration')
+    parser.add_argument('-o', '--operation', type=int, default=0,help='Operation to perform \n 0 - READ PUBLIC KEY \n 2 - READ SKM PUBLIC KEY \n 3 - CERTIFY ATTRIBUTES ')
+    parser.add_argument('-r', '--reader', type=str, default='MANUFACTURER',help='Reader name')
+    args = parser.parse_args()
+    if args.operation == 0:
+        print(args.reader)
+        Certifier.read_public_keys([args.reader])
+
+    elif args.operation == 1:
+        Certifier.skm_public_key()
+
+    elif args.operation == 2:
+        manufacturer_address = config('ADDRESS_MANUFACTURER')
+        supplier1_address = config('ADDRESS_SUPPLIER1')
+        supplier2_address = config('ADDRESS_SUPPLIER2')
+
+        roles = {
+            'MANUFACTURER': ['MANUFACTURER'],
+
+            'SUPPLIER1': ['SUPPLIER', 'ELECTRONICS'],
+
+            'SUPPLIER2': ['SUPPLIER', 'MECHANICS']
+        }
+        Certifier.attribute_certification(roles)
+    else:
+        raise Exception("Operation number not valid")    
+
