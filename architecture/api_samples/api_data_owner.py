@@ -1,6 +1,7 @@
 import argparse
 import requests
 from decouple import config
+import ssl
 
 parser = argparse.ArgumentParser()
 parser.add_argument('-hs' ,'--handshake', action='store_true')
@@ -21,6 +22,14 @@ g = open('../../files/data.json')
 
 message_to_send = g.read()
 
+server_cert = '../Keys/api.crt'
+client_cert = '../Keys/client.crt'
+client_key = '../Keys/client.key'
+
+
+context = ssl.create_default_context(ssl.Purpose.SERVER_AUTH, cafile=server_cert)
+context.load_cert_chain(certfile=client_cert, keyfile=client_key)
+
 input = {'process_id': process_instance_id,
     'entries': entries,
     'policy' : policy, 
@@ -29,15 +38,15 @@ input = {'process_id': process_instance_id,
 
 if args.handshake:
     response = requests.post('http://127.0.0.1:8888/dataOwner/handshake',
-        json = input)
+        json = input,  cert=(client_cert, client_key), verify=server_cert)
     exit()
 
 if args.cipher:
     response = requests.post('http://127.0.0.1:8888/dataOwner/cipher',
-        json = input)
+        json = input,  cert=(client_cert, client_key), verify=server_cert)
     exit()
 
 if args.full_request:
     response = requests.post('http://127.0.0.1:8888/dataOwner/fullrequest',
-        json = input)
+        json = input,  cert=(client_cert, client_key), verify=server_cert)
     exit()

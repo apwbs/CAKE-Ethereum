@@ -1,6 +1,7 @@
 import requests
 import argparse
 from decouple import config
+import ssl
 
 parser = argparse.ArgumentParser()
 parser.add_argument('-hs', '--handshake', action='store_true', help='Handshake')
@@ -16,29 +17,39 @@ slice_id = config('SLICE_ID_' + str(args.slice))
 message_id = config('MESSAGE_ID')
 reader_address = config('READER_' + str(args.reader))
 
+server_cert = '../Keys/api.crt'
+client_cert = '../Keys/client.crt'
+client_key = '../Keys/client.key'
+
+
+context = ssl.create_default_context(ssl.Purpose.SERVER_AUTH, cafile=server_cert)
+context.load_cert_chain(certfile=client_cert, keyfile=client_key)
+
+
 print("process_instance_id: {}".format(process_instance_id))
 print("slice_id: {}".format(slice_id))
 print("message_id: {}".format(message_id))
 print("reader_address: {}".format(reader_address))
 
-input = {'process_id' : int(process_instance_id),
+input = {'process_id' : process_instance_id,
     'slice_id' : slice_id,
     'message_id': message_id,
     'reader_address' : reader_address}
 
 if args.handshake:
     response = requests.post('http://127.0.0.1:8888/client/handshake',
-        json = input)
+        json = input, cert=(client_cert, client_key), verify=server_cert)
     exit()
 if args.generate_key:
     response = requests.post('http://127.0.0.1:8888/client/generateKey',
-        json = input)
+        json = input, cert=(client_cert, client_key), verify=server_cert)
     exit()
 if args.access_data:
     response = requests.post('http://127.0.0.1:8888/client/accessData',
-        json = input)
+        json = input,  cert=(client_cert, client_key), verify=server_cert)
     exit()
 if args.full_request:
     response = requests.post('http://127.0.0.1:8888/client/fullRequest',
         json = input)
+    print(response.text, cert=(client_cert, client_key), verify=server_cert)
     exit()
