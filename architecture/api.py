@@ -12,6 +12,16 @@ app = Flask(__name__)
 CORS(app)
 
 
+import ssl
+server_cert = 'Keys/api.crt'
+server_key = 'Keys/api.key'
+client_certs = 'Keys/client.crt'
+
+context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
+context.verify_mode = ssl.CERT_REQUIRED
+context.load_cert_chain(certfile=server_cert, keyfile=server_key) 
+context.load_verify_locations(cafile=client_certs)
+
 def __get_client_args__(request):
     """ Read the arguments from the client request
 
@@ -275,4 +285,4 @@ def test():
     return "Test done"
 
 if __name__ == '__main__':
-    app.run(host="0.0.0.0", port="8888")
+    app.run(host="0.0.0.0", port="8080", ssl_context=context)
