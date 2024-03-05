@@ -11,7 +11,8 @@ from flask_cors import CORS, cross_origin
 app = Flask(__name__)
 CORS(app)
 
-def getClientArgs(request):
+
+def __get_client_args__(request):
     """ Read the arguments from the client request
 
     This function is used to get the arguments from the client request
@@ -30,7 +31,16 @@ def getClientArgs(request):
     reader_address = request.json.get('reader_address')
     message_id = request.json.get('message_id')
     slice_id = request.json.get('slice_id')
+    '''
+    print("Reader_address is: " + reader_address)
+    print("Message_id is: " + message_id)
+    if slice_id is not None:
+        print("Slice_id is: " + slice_id)
+    print("Process_id is: " + str(process_id))
+    '''
     return reader_address, message_id, slice_id, process_id
+
+
 
 @app.route('/')
 def go_home():
@@ -45,7 +55,8 @@ def go_home():
     return 'Welcome to the CAKE API'
 
 #### Request from client to SKM Server ####
-@app.route('/client/handshake/' , methods=['POST'])
+
+@app.route('/client/handshake/' , methods=['GET', 'POST'])
 def client_handshake():
     """ Request to the SKM Server to handshaking
 
@@ -60,15 +71,15 @@ def client_handshake():
     Returns:
         The status of the request, 200 if the handshake is completed
     """
-    reader_address, message_id, _, process_id = getClientArgs(request)
+    reader_address, message_id, _, process_id = __get_client_args__(request)
     if reader_address == '' or message_id == '':
         return "Missing parameters" , 400   
     client = CAKEClient(message_id=message_id, reader_address=reader_address, process_instance_id=process_id)
     client.handshake()
-    #client.disconnect()
     return "Handshake completed" , 200
 
-@app.route('/client/generateKey/' , methods=['POST'])
+
+@app.route('/client/generateKey/' , methods=['GET', 'POST'])
 def generateKey():
     """ Request to the SKM Server to generate a key
 
@@ -84,7 +95,7 @@ def generateKey():
     Returns:
         The status of the request, 200 if the key is generated
     """
-    reader_address, message_id, _, process_id = getClientArgs(request)
+    reader_address, message_id, _, process_id = __get_client_args__(request)
     if reader_address == '' or message_id == '':
         print("Missing parameters")
         return "Missing parameters" , 400
@@ -92,7 +103,8 @@ def generateKey():
     client.generate_key()
     return "Key generated", 200
 
-@app.route('/client/accessData/' , methods=['POST'])
+
+@app.route('/client/accessData/' , methods=['GET', 'POST'])
 def accessData():
     """ Request to the SKM Server to access data
 
@@ -109,14 +121,14 @@ def accessData():
     Returns: 
         The status of the request, 200 if the data is accessed
     """
-    reader_address, message_id, slice_id, process_id = getClientArgs(request)
+    reader_address, message_id, slice_id, process_id = __get_client_args__(request)
     if reader_address == '' or message_id == '':
         return "Missing parameters" , 400
     client = CAKEClient(message_id=message_id, reader_address=reader_address, slice_id=slice_id, process_instance_id= process_id)
     client.access_data()
     #client.disconnect()   
 
-    return "Data accessed", 200
+    return "Data accessed" , 200
 
 
 ##### Request from Data Owner to SDM Server #####
@@ -136,7 +148,8 @@ def data_owner_handshake():
     """
     data_owner = CAKEDataOwner(process_instance_id=request.json.get('process_id'))
     data_owner.handshake()
-    return "Handshake completed"
+    return "Handshake completed", 200
+
 
 @app.route('/dataOwner/cipher/', methods=['POST'])
 def cipher():
@@ -167,20 +180,14 @@ def cipher():
     
     #TODO: Check if it is mandatory
     if len(entries) != len(policy):
-        return "Entries and policy legth doesn't match" , 400   
+        return "Entries and policy legth doesn't match" , 400  
 
     entries_string = '###'.join(str(x) for x in entries)
     policy_string = '###'.join(str(x) for x in policy)
-    '''
-    print("Message is: " + message)
-    print("Entries are: " + entries_string)
-    print("Policy is: " + policy_string)
-    '''
-    
     data_owner = CAKEDataOwner(process_instance_id=request.json.get('process_id'))
     data_owner.cipher_data(message, entries_string, policy_string)
-    return "Cipher completed"
-    
+    return "Cipher completed", 200
+
 @app.route('/certification/', methods=['POST'])
 def certification():
     """ Request to to certify the actors
@@ -196,6 +203,7 @@ def certification():
         The process instance id of the certification process and
         the status of the request, 200 if the certification is completed
     """
+
     actors = request.json.get('actors')
     roles = request.json.get('roles')
     process_instance_id = Certifier.certify(actors, roles)
@@ -218,7 +226,7 @@ def read_public_key():
     actors = request.json.get('actors')
     #roles = request.json.get('roles')
     Certifier.read_public_key(actors)
-    return "Public keys read"
+    return "Public keys read", 200
 
 @app.route('/certification/skmpublickey/', methods=['GET', 'POST'])
 def skm_public_key():
@@ -230,7 +238,8 @@ def skm_public_key():
         The status of the request, 200 if the keys are read correctly
     """
     Certifier.skm_public_key()
-    return "SKM public key read"
+    return "SKM public key read", 200
+
 
 @app.route('/certification/attributecertification/', methods=['POST'])
 def attribute_certification():
@@ -247,10 +256,23 @@ def attribute_certification():
         The process instance id of the certification process and
         the status of the request, 200 if the certification is completed
     """
-    #actors = request.json.get('actors')
     roles = request.json.get('roles')
     process_instance_id =  Certifier.attribute_certification(roles)
+
     return str(process_instance_id), 200
 
+@app.route('/test/', methods=['GET', 'POST'])
+def test():
+    """ Test function
+
+    This function is used to test the server during the development phase.
+
+    Returns:
+        A string that says "Test done"
+    """
+    import os
+    os.system("ls")
+    return "Test done"
+
 if __name__ == '__main__':
-    app.run(port=8888)
+    app.run(host="0.0.0.0", port="8888")
