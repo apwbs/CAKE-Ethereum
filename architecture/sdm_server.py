@@ -1,289 +1,143 @@
-import sqlite3
-from flask import Flask, request
 import json
-from decouple import config
-from hashlib import sha512
-from certifier import Certifier
-from client import CAKEClient
-from data_owner import CAKEDataOwner
-from flask_cors import CORS, cross_origin
-
-app = Flask(__name__)
-CORS(app)
-
-
+import socket
 import ssl
-server_cert = 'Keys/api.crt'
-server_key = 'Keys/api.key'
-client_certs = 'Keys/client.crt'
+import threading
+import cipher_message
+from datetime import datetime
+import random
+import sqlite3
+from hashlib import sha512
+import block_int
+from decouple import config
+import ipfshttpclient
 
+chunk_size = 16384
+
+api = ipfshttpclient.connect('/ip4/127.0.0.1/tcp/5001')
+
+process_instance_id = config('PROCESS_INSTANCE_ID')
+
+HEADER = int(config('HEADER'))
+PORT = int(config('SDM_PORT'))
+server_cert = 'Keys/server.crt'
+server_key = 'Keys/server.key'
+client_certs = 'Keys/client.crt'
+SERVER = socket.gethostbyname(socket.gethostname())
+ADDR = (SERVER, PORT)
+FORMAT = 'utf-8'
+DISCONNECT_MESSAGE = "!DISCONNECT"
+
+"""
+creation and connection of the secure channel using SSL protocol
+"""
 context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
 context.verify_mode = ssl.CERT_REQUIRED
-context.load_cert_chain(certfile=server_cert, keyfile=server_key) 
+context.load_cert_chain(certfile=server_cert, keyfile=server_key)
 context.load_verify_locations(cafile=client_certs)
+bindsocket = socket.socket()
+bindsocket.bind(ADDR)
+bindsocket.listen(5)
 
-def __get_client_args__(request):
-    """ Read the arguments from the client request
-
-    This function is used to get the arguments from the client request
-    and return them in the correct format to be used by the CAKEClient
-
-    Args:
-        request: the request from the client
-    
-    Returns:
-        reader_address: the address of the reader
-        message_id: the id of the message
-        slice_id: the id of the slice
-        process_id: the id of the process (process_instance_id)
-    """
-    process_id = request.json.get('process_id')
-    reader_address = request.json.get('reader_address')
-    message_id = request.json.get('message_id')
-    slice_id = request.json.get('slice_id')
-    '''
-    print("Reader_address is: " + reader_address)
-    print("Message_id is: " + message_id)
-    if slice_id is not None:
-        print("Slice_id is: " + slice_id)
-    print("Process_id is: " + str(process_id))
-    '''
-    return reader_address, message_id, slice_id, process_id
+"""
+function triggered by the client handler. Here starts the ciphering of the message with the policy.
+"""
 
 
-
-@app.route('/')
-def go_home():
-    """ A simple request to the API welcome message
-
-    This function is used to test if the API is working correctly
-    during the development phase
-
-    Returns:
-        A welcome message
-    """
-    return 'Welcome to the CAKE API'
-
-#### Request from client to SKM Server ####
-
-@app.route('/client/handshake/' , methods=['GET', 'POST'])
-def client_handshake():
-    """ Request to the SKM Server to handshaking
-
-    This function is used to send a request to the SKM Server
-    to make an handshake with the reader
- 
-    Args:
-        reader_address: the address of the reader
-        message_id: the id of the message
-        process_id: the id of the process (process_instance_id)
-
-    Returns:
-        The status of the request, 200 if the handshake is completed
-    """
-    reader_address, message_id, _, process_id = __get_client_args__(request)
-    if reader_address == '' or message_id == '':
-        return "Missing parameters" , 400   
-    client = CAKEClient(message_id=message_id, reader_address=reader_address, process_instance_id=process_id)
-    client.handshake()
-    return "Handshake completed" , 200
+def cipher(message):
+    return cipher_message.main(message[1], message[2], message[3], message[4])
 
 
-@app.route('/client/generateKey/' , methods=['GET', 'POST'])
-def generateKey():
-    """ Request to the SKM Server to generate a key
+def generate_number_to_sign(reader_address):
+    # Connection to SQLite3 sdm database
+    connection = sqlite3.connect('files/sdm/sdm.db')
+    x = connection.cursor()
 
-    This function is used to send a request to the SKM Server
-    to generate a key for the reader.
-    The key is generated only if the handshake is completed.
-    
-    Args:
-        reader_address: the address of the reader
-        message_id: the id of the message
-        process_id: the id of the process (process_instance_id)
-        
-    Returns:
-        The status of the request, 200 if the key is generated
-    """
-    reader_address, message_id, _, process_id = __get_client_args__(request)
-    if reader_address == '' or message_id == '':
-        print("Missing parameters")
-        return "Missing parameters" , 400
-    client = CAKEClient(message_id=message_id, reader_address=reader_address, process_instance_id = process_id)
-    client.generate_key()
-    return "Key generated", 200
+    now = datetime.now()
+    now = int(now.strftime("%Y%m%d%H%M%S%f"))
+    random.seed(now)
+    number_to_sign = random.randint(1, 2 ** 64)
+
+    x.execute("INSERT OR IGNORE INTO handshake_numbers VALUES (?,?,?)",
+              (str(process_instance_id), reader_address, str(number_to_sign)))
+    connection.commit()
+    return number_to_sign
 
 
-@app.route('/client/accessData/' , methods=['GET', 'POST'])
-def accessData():
-    """ Request to the SKM Server to access data
+def check_handshake(reader_address, signature):
+    # Connection to SQLite3 sdm database
+    connection = sqlite3.connect('files/sdm/sdm.db')
+    x = connection.cursor()
 
-    This function is used to send a request to the SKM Server
-    to access data from the reader.
-    The data is accessed only if the reader already has the key.
-
-    Args:
-        reader_address: the address of the reader
-        message_id: the id of the message
-        slice_id: the id of the slice
-        process_id: the id of the process (process_instance_id)    
-
-    Returns: 
-        The status of the request, 200 if the data is accessed
-    """
-    reader_address, message_id, slice_id, process_id = __get_client_args__(request)
-    if reader_address == '' or message_id == '':
-        return "Missing parameters" , 400
-    client = CAKEClient(message_id=message_id, reader_address=reader_address, slice_id=slice_id, process_instance_id= process_id)
-    client.access_data()
-    #client.disconnect()   
-
-    return "Data accessed" , 200
+    x.execute("SELECT * FROM handshake_numbers WHERE process_instance=? AND reader_address=?",
+              (str(process_instance_id), reader_address))
+    result = x.fetchall()
+    number_to_sign = result[0][2]
+    msg = str(number_to_sign).encode()
+    public_key_ipfs_link = block_int.retrieve_publicKey(reader_address)
+    getfile = api.cat(public_key_ipfs_link)
+    getfile = getfile.split(b'###')
+    public_key_n = int(getfile[1].decode('utf-8'))
+    public_key_e = int(getfile[2].decode('utf-8').rstrip('"'))
+    if getfile[0].split(b': ')[1].decode('utf-8') == reader_address:
+        hash = int.from_bytes(sha512(msg).digest(), byteorder='big')
+        hashFromSignature = pow(int(signature), public_key_e, public_key_n)
+        if hash == hashFromSignature:
+            print("Handshake successful")
+        else: 
+            print("Handshake failed")
+        return hash == hashFromSignature
 
 
-##### Request from Data Owner to SDM Server #####
-
-@app.route('/dataOwner/handshake/' , methods=['POST'])
-def data_owner_handshake():
-    """ Request to the SDM Server to handshaking
-
-    This function is used to send a request to the SDM Server
-    to make an handshake with the MANUFACTURER
-
-    Args:
-        process_id: the id of the process (process_instance_id)
-    
-    Returns:
-        The status of the request, 200 if the handshake is completed
-    """
-    data_owner = CAKEDataOwner(process_instance_id=request.json.get('process_id'))
-    data_owner.handshake()
-    return "Handshake completed", 200
+"""
+function that handles the requests from the clients. There is only one request possible, namely the 
+ciphering of a message with a policy.
+"""
 
 
-@app.route('/dataOwner/cipher/', methods=['POST'])
-def cipher():
-    """ Request to the SDM Server to cipher the message from the Manufacturer
+def handle_client(conn, addr):
+    print(f"[NEW CONNECTION] {addr} connected.")
 
-    This function is used to send a request to the SDM Server
-    to cipher the message from the Manufacturer, setting the policy
-    of the decryption.
+    connected = True
+    while connected:
+        msg_length = conn.recv(HEADER).decode(FORMAT)
+        if msg_length:
+            msg_length = int(msg_length)
+            received_data = b""
+            while len(received_data) < msg_length:
+                chunk = conn.recv(min(msg_length - len(received_data), chunk_size))
+                received_data += chunk
+            msg = received_data.decode(FORMAT)
+            if msg == DISCONNECT_MESSAGE:
+                connected = False
 
-    Args:
-        message: the message to cipher, it's a string read from a json file
-        entries:  a list of list of label of the message that has the same policy
-        policy: a list containing for each group of label the process_id associated
-            and the policy, defining which actors can access the data
-
-    Returns:
-        The status of the request, 200 if the cipher is completed
-    """
-    message = request.json.get('message')
-    if len(message) == 0:
-        return "Missing parameters" , 400
-    entries = request.json.get('entries')
-    policy = request.json.get('policy')
-    if len(entries) == 0:
-        return "Missing parameters" , 400
-    if len(policy) == 0:
-        return "Missing parameters" , 400
-    
-    #TODO: Check if it is mandatory
-    if len(entries) != len(policy):
-        return "Entries and policy legth doesn't match" , 400  
-
-    entries_string = '###'.join(str(x) for x in entries)
-    policy_string = '###'.join(str(x) for x in policy)
-    data_owner = CAKEDataOwner(process_instance_id=request.json.get('process_id'))
-    data_owner.cipher_data(message, entries_string, policy_string)
-    return "Cipher completed", 200
-
-@app.route('/certification/', methods=['POST'])
-def certification():
-    """ Request to to certify the actors
-    
-    This function is used to send a request read the actors' public keys,
-    the skm's public key and to certify the actors involved in the process
-
-    Args:
-        actors: the list of actors involved in the process
-        roles: a dictionary that contains for each actor the list of roles associated
-    
-    Returns:
-        The process instance id of the certification process and
-        the status of the request, 200 if the certification is completed
-    """
-
-    actors = request.json.get('actors')
-    roles = request.json.get('roles')
-    process_instance_id = Certifier.certify(actors, roles)
-    return str(process_instance_id), 200
-
-@app.route('/certification/readpublickey/', methods=['POST'])
-def read_public_key():
-    """ Read the public keys of the actors
-
-    This function is used to read the public keys of the actors
-    that are involved in the process
-    
-    Args:
-        actors: the list of actors involved in the process
-        roles: a dictionary that contains for each actor the list of roles associated
-
-    Returns:
-        The status of the request, 200 if the keys are read correctly
-    """
-    actors = request.json.get('actors')
-    #roles = request.json.get('roles')
-    Certifier.read_public_key(actors)
-    return "Public keys read", 200
-
-@app.route('/certification/skmpublickey/', methods=['GET', 'POST'])
-def skm_public_key():
-    """ Read the public key of the SKM
-
-    This function is used to read the public key of the SKM
-
-    Returns:
-        The status of the request, 200 if the keys are read correctly
-    """
-    Certifier.skm_public_key()
-    return "SKM public key read", 200
+            # print(f"[{addr}] {msg}")
+            conn.send("Msg received!".encode(FORMAT))
+            message = msg.split('§')
+            if message[0] == "Start handshake":
+                number_to_sign = generate_number_to_sign(message[1])
+                conn.send(b'Number to be signed: ' + str(number_to_sign).encode())
+            if message[0] == "Cipher this message":
+                if check_handshake(message[4], message[5]):
+                    message_id = cipher(message)
+                    conn.send(b'Here is the message_id: ' + str(message_id).encode())
+    conn.close()
 
 
-@app.route('/certification/attributecertification/', methods=['POST'])
-def attribute_certification():
-    """ Certificate the actors
+"""
+main function starting the server. It listens on a port and waits for a request from a client
+"""
 
-    This function is used to certificate the actors
-    that are involved in the process
-    
-    Args:
-        actors: the list of actors involved in the process
-        roles: a dictionary that contains for each actor the list of roles associated
-        
-    Returns:
-        The process instance id of the certification process and
-        the status of the request, 200 if the certification is completed
-    """
-    roles = request.json.get('roles')
-    process_instance_id =  Certifier.attribute_certification(roles)
 
-    return str(process_instance_id), 200
+def start():
+    bindsocket.listen()
+    print(f"[LISTENING] Server is listening on {SERVER}")
+    while True:
+        newsocket, fromaddr = bindsocket.accept()
+        conn = context.wrap_socket(newsocket, server_side=True)
+        thread = threading.Thread(target=handle_client, args=(conn, fromaddr))
+        thread.start()
+        print(f"[ACTIVE CONNECTIONS] {threading.activeCount() - 1}")
 
-@app.route('/test/', methods=['GET', 'POST'])
-def test():
-    """ Test function
 
-    This function is used to test the server during the development phase.
-
-    Returns:
-        A string that says "Test done"
-    """
-    import os
-    os.system("ls")
-    return "Test done"
-
-if __name__ == '__main__':
-    app.run(host="0.0.0.0", port="8080", ssl_context=context)
-    app.run
+print("[STARTING] server is starting...")
+start()
